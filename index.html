@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Generador de Nota de Falecimiento</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  :root{
+    --paper:#faf6ec;
+    --ink:#242018;
+    --line:#8a7f66;
+    --gold:#b79a53;
+    --panel:#ffffff;
+    --panel-border:#ddd6c4;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family: 'Georgia', 'Times New Roman', serif;
+    background:#e9e4d8;
+    color:var(--ink);
+    display:flex;
+    min-height:100vh;
+  }
+  #panel{
+    width:380px;
+    flex-shrink:0;
+    background:var(--panel);
+    border-right:1px solid var(--panel-border);
+    padding:24px;
+    overflow-y:auto;
+    height:100vh;
+  }
+  #panel h1{
+    font-size:18px;
+    margin:0 0 4px;
+  }
+  #panel p.sub{
+    font-size:12px;
+    color:#777;
+    margin:0 0 20px;
+  }
+  .field{margin-bottom:14px;}
+  .field label{
+    display:block;
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:.04em;
+    color:#666;
+    margin-bottom:4px;
+    font-family: -apple-system, sans-serif;
+  }
+  .field input[type=text], .field input[type=date], .field input[type=time], .field textarea{
+    width:100%;
+    padding:7px 8px;
+    border:1px solid #ccc;
+    border-radius:3px;
+    font-family: -apple-system, sans-serif;
+    font-size:13px;
+  }
+  .field textarea{resize:vertical; min-height:70px;}
+  .row2{display:flex; gap:8px;}
+  .row2 > div{flex:1;}
+  .field-photo input{font-size:12px;}
+  .toolbar{display:flex; gap:4px; margin-bottom:4px;}
+  .toolbar button{
+    width:26px; height:26px; border:1px solid #ccc; background:#fafafa; border-radius:3px; cursor:pointer; font-size:12px;
+  }
+  .toolbar button.active{background:#333; color:#fff;}
+  #cuerpoEdit{
+    border:1px solid #ccc; border-radius:3px; padding:8px; min-height:150px;
+    font-family: -apple-system, sans-serif; font-size:13px; line-height:1.4;
+  }
+  #downloadBtn{
+    width:100%;
+    padding:12px;
+    background:#2f5233;
+    color:#fff;
+    border:none;
+    border-radius:4px;
+    font-size:14px;
+    cursor:pointer;
+    margin-top:10px;
+    font-family: -apple-system, sans-serif;
+  }
+  #downloadBtn:hover{background:#264429;}
+  hr.sep{border:none; border-top:1px solid #eee; margin:18px 0;}
+
+  #stage{
+    flex:1;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:40px;
+    overflow:auto;
+  }
+
+  /* ---- The card itself ---- */
+  #card{
+    width:700px;
+    background:var(--paper);
+    padding:22px;
+    position:relative;
+    font-family: 'Georgia', serif;
+  }
+  #velo{
+    position:absolute;
+    inset:0;
+    pointer-events:none;
+    z-index:1;
+    background:rgba(255,255,255,0);
+  }
+  #bgImgWrap{
+    position:absolute;
+    inset:0;
+    overflow:hidden;
+    z-index:0;
+    display:none;
+  }
+  #bgImgWrap img{
+    width:100%;
+    height:100%;
+    object-fit:cover;
+    transform-origin:center center;
+  }
+  #frameOuter{
+    position:relative;
+    z-index:2;
+    border:2px solid var(--line);
+    padding:6px;
+  }
+  #frameInner{
+    border:1px solid var(--line);
+    padding:36px 44px 30px;
+    position:relative;
+    min-height:900px;
+  }
+  .corner{
+    position:absolute;
+    width:22px; height:22px;
+    border:2px solid var(--line);
+  }
+  .corner.tl{top:-3px; left:-3px; border-right:none; border-bottom:none;}
+  .corner.tr{top:-3px; right:-3px; border-left:none; border-bottom:none;}
+  .corner.bl{bottom:-3px; left:-3px; border-right:none; border-top:none;}
+  .corner.br{bottom:-3px; right:-3px; border-left:none; border-top:none;}
+
+  #titulo{
+    text-align:center;
+    font-size:30px;
+    letter-spacing:.12em;
+    font-weight:bold;
+    margin:6px 0 2px;
+  }
+  #fechaView{
+    text-align:center;
+    font-size:17px;
+    font-style:italic;
+    font-weight:bold;
+    margin-bottom:22px;
+  }
+  #fotoWrap{
+    width:150px; height:150px;
+    margin:0 auto 20px;
+    border-radius:50%;
+    border:6px double var(--gold);
+    overflow:hidden;
+    background:#ddd;
+    display:flex; align-items:center; justify-content:center;
+  }
+  #fotoWrap.shape-circle{ border-radius:50%; }
+  #fotoWrap.shape-oval{ border-radius:50%; width:150px; height:190px; }
+  #fotoWrap.shape-rounded{ border-radius:18px; }
+  #fotoWrap.shape-square{ border-radius:0; }
+  #fotoWrap img{width:100%; height:100%; object-fit:cover;}
+  #fotoWrap .placeholder{font-size:11px; color:#999; text-align:center; font-family:sans-serif; padding:10px;}
+
+  #nombreView{
+    text-align:center;
+    font-family: 'Brush Script MT', 'Segoe Script', cursive;
+    font-size:18px;
+    margin:0 0 14px;
+  }
+  .divider{
+    text-align:center;
+    color:var(--gold);
+    font-size:20px;
+    letter-spacing:10px;
+    margin:0 0 22px;
+  }
+  #cuerpoView{
+    font-size:15px;
+    line-height:1.65;
+    text-align:left;
+  }
+  #cuerpoView p{margin:0 0 14px;}
+
+  #footerOrgView{
+    text-align:center;
+    font-weight:bold;
+    font-style:italic;
+    margin-top:26px;
+    font-size:14px;
+  }
+  #footerSecView{
+    text-align:center;
+    font-weight:bold;
+    font-style:italic;
+    font-size:13px;
+  }
+</style>
+</head>
+<body>
+
+<div id="panel">
+  <h1>Aviso de Fallecimiento</h1>
+  <p class="sub">Completa los datos y descarga la imagen lista para compartir.</p>
+
+  <div class="field">
+    <label>Fecha del aviso</label>
+    <input type="text" id="fecha" placeholder="24 de agosto de 2026">
+  </div>
+
+  <div class="field field-photo">
+    <label>Fotografía</label>
+    <input type="file" id="foto" accept="image/*">
+  </div>
+
+  <div class="field">
+    <label>Forma de la fotografía</label>
+    <select id="fotoForma">
+      <option value="circle">Círculo</option>
+      <option value="oval">Óvalo</option>
+      <option value="rounded">Cuadrado (esquinas redondeadas)</option>
+      <option value="square">Cuadrado</option>
+    </select>
+  </div>
+
+  <div class="field">
+    <label>Ajuste de la fotografía</label>
+    <select id="fotoAjuste">
+      <option value="cover">Rellenar el marco (puede recortar bordes)</option>
+      <option value="contain">Mostrar completa (sin recortar)</option>
+    </select>
+  </div>
+
+  <div class="field">
+    <label>Zoom de la fotografía (<span id="fotoZoomValor">100</span>%)</label>
+    <input type="range" id="fotoZoom" min="100" max="300" value="100" style="width:100%;">
+  </div>
+
+  <div class="row2">
+    <div class="field">
+      <label>Posición horizontal</label>
+      <input type="range" id="fotoPosX" min="0" max="100" value="50" style="width:100%;">
+    </div>
+    <div class="field">
+      <label>Posición vertical</label>
+      <input type="range" id="fotoPosY" min="0" max="100" value="50" style="width:100%;">
+    </div>
+  </div>
+
+  <div class="field">
+    <label>Nombre completo</label>
+    <input type="text" id="nombre" placeholder="Bernardino Valério Netto">
+  </div>
+
+  <div class="field">
+    <label>Tamaño de letra del nombre (<span id="nombreTamValor">18</span>px)</label>
+    <input type="range" id="nombreTam" min="14" max="48" value="18" style="width:100%;">
+  </div>
+
+  <hr class="sep">
+
+  <div class="field">
+    <label>Color de fondo del papel</label>
+    <input type="color" id="bgColor" value="#faf6ec" style="width:60px; height:32px; padding:2px; border:1px solid #ccc; border-radius:3px;">
+  </div>
+  <div class="field field-photo">
+    <label>O imagen de fondo (opcional, ej. textura de papel)</label>
+    <input type="file" id="bgImage" accept="image/*">
+    <button type="button" id="bgImageClear" style="margin-top:6px; font-size:11px; padding:4px 8px; cursor:pointer;">Quitar imagen de fondo</button>
+  </div>
+
+  <div class="field">
+    <label>Tamaño / zoom de la imagen de fondo (<span id="bgZoomValor">100</span>%)</label>
+    <input type="range" id="bgZoom" min="50" max="300" value="100" style="width:100%;">
+  </div>
+
+  <div class="field">
+    <label>Ajuste de la imagen de fondo</label>
+    <select id="bgAjuste">
+      <option value="cover">Rellenar la tarjeta (puede recortar bordes)</option>
+      <option value="contain">Mostrar completa (sin recortar)</option>
+    </select>
+  </div>
+
+  <div class="row2">
+    <div class="field">
+      <label>Posición horizontal (fondo)</label>
+      <input type="range" id="bgPosX" min="0" max="100" value="50" style="width:100%;">
+    </div>
+    <div class="field">
+      <label>Posición vertical (fondo)</label>
+      <input type="range" id="bgPosY" min="0" max="100" value="50" style="width:100%;">
+    </div>
+  </div>
+
+  <div class="field">
+    <label>Velo sobre el fondo (mejora la lectura del texto)</label>
+    <div class="row2">
+      <div>
+        <select id="veloColor">
+          <option value="255,255,255">Velo blanco</option>
+          <option value="0,0,0">Velo negro</option>
+        </select>
+      </div>
+      <div>
+        <input type="range" id="veloOpacidad" min="0" max="100" value="0" style="width:100%;">
+      </div>
+    </div>
+  </div>
+
+  <div class="field">
+    <label>Color del texto</label>
+    <input type="color" id="textColor" value="#242018" style="width:60px; height:32px; padding:2px; border:1px solid #ccc; border-radius:3px;">
+  </div>
+
+  <hr class="sep">
+
+  <div class="field">
+    <label>Tamaño de letra del cuerpo (<span id="cuerpoTamValor">15</span>px)</label>
+    <input type="range" id="cuerpoTam" min="12" max="26" value="15" style="width:100%;">
+  </div>
+
+  <div class="field">
+    <label>Cuerpo del aviso (usa la barra para negrita / subrayado / cursiva)</label>
+    <div class="toolbar">
+      <button type="button" onclick="fmt('bold')"><b>B</b></button>
+      <button type="button" onclick="fmt('underline')"><u>S</u></button>
+      <button type="button" onclick="fmt('italic')"><i>I</i></button>
+    </div>
+    <div id="cuerpoEdit" contenteditable="true">
+      <p>Cara Hermandad,<br>La paz de Dios.</p>
+      <p>Comunicamos con gran pesar que el Señor recogió hoy, a los <b>xx años</b> de edad, al hermano <b>NOMBRE APELLIDO</b> <i>(Ministro - Administrador - Hermano/a)</i>.</p>
+      <p>El cuerpo será velado <b><u>mañana</u></b> (día — fecha), desde las <b>08:00</b>, en <u>lugar del velorio</u>, donde a las <b>10:00</b> se realizará el Servicio Divino.</p>
+      <p>Posteriormente se dirigirá en cortejo hacia el <b>sepultamento en el Cementerio</b>, a las <b>15:00</b>.</p>
+      <p><b>Oremos por la familia y la hermandad.</b></p>
+    </div>
+  </div>
+
+  <hr class="sep">
+
+  <div class="field">
+    <label>Organización (línea 1 del pie)</label>
+    <input type="text" id="org" placeholder="Congregación Cristiana en Chile">
+  </div>
+  <div class="field">
+    <label>Secretaría / lugar y hora (línea 2 del pie)</label>
+    <input type="text" id="sec" placeholder="Secretaría - Santiago, 24 de agosto de 2026, a las 12:50">
+  </div>
+
+  <button id="downloadBtn" onclick="descargar()">Descargar imagen (PNG)</button>
+</div>
+
+<div id="stage">
+  <div id="card">
+    <div id="bgImgWrap"><img id="bgImgEl" src=""></div>
+    <div id="velo"></div>
+    <div id="frameOuter">
+      <div id="frameInner">
+        <div class="corner tl"></div>
+        <div class="corner tr"></div>
+        <div class="corner bl"></div>
+        <div class="corner br"></div>
+
+        <div id="titulo">NOTA DE FALECIMIENTO</div>
+        <div id="fechaView">24 de agosto de 2026</div>
+
+        <div id="fotoWrap" class="shape-circle"><span class="placeholder">Sube una fotografía</span></div>
+
+        <div id="nombreView">Nombre Apellido</div>
+        <div class="divider">— ⚜ —</div>
+
+        <div id="cuerpoView"></div>
+
+        <div id="footerOrgView">Congregación Cristiana</div>
+        <div id="footerSecView">Secretaría — fecha</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function fmt(cmd){ document.execCommand(cmd, false, null); }
+
+const $ = id => document.getElementById(id);
+
+function sync(){
+  $('fechaView').textContent = $('fecha').value || '—';
+  $('nombreView').textContent = $('nombre').value || 'Nombre Apellido';
+  $('cuerpoView').innerHTML = $('cuerpoEdit').innerHTML;
+  $('footerOrgView').textContent = $('org').value || '—';
+  $('footerSecView').textContent = $('sec').value || '—';
+}
+
+['fecha','nombre','org','sec'].forEach(id => $(id).addEventListener('input', sync));
+$('cuerpoEdit').addEventListener('input', sync);
+
+$('foto').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    $('fotoWrap').innerHTML = `<img src="${ev.target.result}">`;
+    actualizarFotoImg();
+  };
+  reader.readAsDataURL(file);
+});
+
+$('fotoForma').addEventListener('change', () => {
+  $('fotoWrap').className = 'shape-' + $('fotoForma').value;
+});
+
+function actualizarFotoImg(){
+  const img = $('fotoWrap').querySelector('img');
+  if(!img) return;
+  img.style.objectFit = $('fotoAjuste').value;
+  img.style.objectPosition = `${$('fotoPosX').value}% ${$('fotoPosY').value}%`;
+  img.style.transform = `scale(${$('fotoZoom').value / 100})`;
+}
+
+$('fotoAjuste').addEventListener('change', actualizarFotoImg);
+$('fotoZoom').addEventListener('input', () => {
+  $('fotoZoomValor').textContent = $('fotoZoom').value;
+  actualizarFotoImg();
+});
+$('fotoPosX').addEventListener('input', actualizarFotoImg);
+$('fotoPosY').addEventListener('input', actualizarFotoImg);
+
+$('bgColor').addEventListener('input', () => {
+  $('card').style.backgroundImage = 'none';
+  $('card').style.backgroundColor = $('bgColor').value;
+});
+
+$('bgImage').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    $('bgImgEl').src = ev.target.result;
+    $('bgImgWrap').style.display = 'block';
+    actualizarBgImg();
+  };
+  reader.readAsDataURL(file);
+});
+
+$('bgImageClear').addEventListener('click', () => {
+  $('bgImage').value = '';
+  $('bgImgEl').src = '';
+  $('bgImgWrap').style.display = 'none';
+  $('bgZoom').value = 100;
+  $('bgZoomValor').textContent = 100;
+  $('bgPosX').value = 50;
+  $('bgPosY').value = 50;
+  $('bgAjuste').value = 'cover';
+});
+
+function actualizarBgImg(){
+  const img = $('bgImgEl');
+  img.style.objectFit = $('bgAjuste').value;
+  img.style.objectPosition = `${$('bgPosX').value}% ${$('bgPosY').value}%`;
+  img.style.transform = `scale(${$('bgZoom').value / 100})`;
+}
+
+function actualizarLimiteZoomFondo(){
+  if($('bgAjuste').value === 'cover'){
+    $('bgZoom').min = 100;
+    if(Number($('bgZoom').value) < 100){
+      $('bgZoom').value = 100;
+      $('bgZoomValor').textContent = 100;
+    }
+  } else {
+    $('bgZoom').min = 50;
+  }
+}
+
+$('bgZoom').addEventListener('input', () => {
+  $('bgZoomValor').textContent = $('bgZoom').value;
+  actualizarBgImg();
+});
+$('bgAjuste').addEventListener('change', () => {
+  actualizarLimiteZoomFondo();
+  actualizarBgImg();
+});
+$('bgPosX').addEventListener('input', actualizarBgImg);
+$('bgPosY').addEventListener('input', actualizarBgImg);
+actualizarLimiteZoomFondo();
+
+function actualizarVelo(){
+  const rgb = $('veloColor').value;
+  const alpha = $('veloOpacidad').value / 100;
+  $('velo').style.background = `rgba(${rgb},${alpha})`;
+}
+$('veloColor').addEventListener('input', actualizarVelo);
+$('veloOpacidad').addEventListener('input', actualizarVelo);
+actualizarVelo();
+
+$('textColor').addEventListener('input', () => {
+  $('frameInner').style.color = $('textColor').value;
+});
+
+$('cuerpoTam').addEventListener('input', () => {
+  $('cuerpoView').style.fontSize = $('cuerpoTam').value + 'px';
+  $('cuerpoTamValor').textContent = $('cuerpoTam').value;
+});
+
+$('nombreTam').addEventListener('input', () => {
+  $('nombreView').style.fontSize = $('nombreTam').value + 'px';
+  $('nombreTamValor').textContent = $('nombreTam').value;
+});
+
+function descargar(){
+  html2canvas(document.getElementById('card'), {scale:2, backgroundColor:null}).then(canvas => {
+    const link = document.createElement('a');
+    link.download = 'nota_falecimiento.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  });
+}
+
+sync();
+</script>
+
+</body>
+</html>
